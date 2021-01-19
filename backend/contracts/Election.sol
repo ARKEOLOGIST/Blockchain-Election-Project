@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.17;
 
 contract Election {
     struct Candidate{
@@ -6,7 +6,6 @@ contract Election {
         uint voteCount;
     }
     struct Voter{
-        bool authorized;
         bool voted;
         uint vote;
     }
@@ -34,13 +33,9 @@ contract Election {
         return candidates.length;
     }
     
-    function authorize(address _person) ownerOnly public {
-        voters[_person].authorized=true;
-    }
-    
     function vote(uint _voteIndex) public {
         require(!voters[msg.sender].voted);
-        require(voters[msg.sender].authorized);
+        require(msg.sender != owner);
         
         voters[msg.sender].vote =_voteIndex;
         voters[msg.sender].voted=true;

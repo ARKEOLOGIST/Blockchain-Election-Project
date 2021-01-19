@@ -42,4 +42,43 @@ router.post(
     usersController.login
 );
 
+router.post(
+    '/deploy',
+    [
+      check('identity')
+      .not()
+      .isEmpty(),
+      check('name')
+      .not()
+      .isEmpty()
+    ],
+    usersController.deploy
+);
+
+router.post(
+  '/add',
+  [
+    check('identity')
+    .not()
+    .isEmpty(),
+    check('name')
+    .not()
+    .isEmpty()
+  ],
+  usersController.add
+);
+
+router.post(
+  '/vote',
+  [
+    check('identity')
+    .not()
+    .isEmpty(),
+    check('val')
+    .not()
+    .isEmpty()
+  ],
+  usersController.vote
+);
+
 module.exports = router;

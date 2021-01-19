@@ -1,9 +1,9 @@
 const { validationResult } = require('express-validator');
 
 const User = require('../models/user');
-const Web3 = require('web3');
-const web3 = new Web3(Web3.givenProvider || "https://rinkeby.infura.io/v3/9cc9a569b98d47e8823b9afa14a6ff04");
+const web3 = require('../models/blockchain');
 const { interface, bytecode } = require('../compile');
+let inbox;
 
 const signup = async (req, res, next) => {
     const errors = validationResult(req);
@@ -69,5 +69,61 @@ const login = async (req, res, next) => {
     }
 }
 
+const deploy = async (req, res, next) => {
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
+    }
+    const { name, identity } = req.body;
+  let existingUser;
+  try {
+      existingUser = await User.findOne({ identity: identity });
+      inbox = await web3.eth.Contract(JSON.parse(interface)).deploy({ data: bytecode, arguments: [name] }).send({ from: existingUser.wallet.address, gas: '3000000'});
+    } catch (err) {
+        return res.status(500).json({ res: 'Deploy failed.'});
+    }
+}
+
+const add = async (req, res, next) => {
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
+    }
+    const { name, identity } = req.body;
+  let existingUser;
+  let add;
+  try {
+      existingUser = await User.findOne({ identity: identity });
+      add = await inbox.methods.addCandidate(name).call();
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ res: 'Method call failed.'});
+    }
+}
+
+const vote = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
+  }
+  const { identity, val } = req.body;
+  let existingUser;
+  let candidateList;
+  let response;
+  try {
+      existingUser = await User.findOne({ identity: identity });
+      candidateList = await inbox.methods.candidates().call();
+      console.log(candidateList);
+      response = await inbox.methods.vote(val).call();
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ res: 'Voting failed.'});
+    }
+}
+
+
 exports.signup = signup;
 exports.login = login;
+exports.deploy = deploy;
+exports.add = add;
+exports.vote = vote;
