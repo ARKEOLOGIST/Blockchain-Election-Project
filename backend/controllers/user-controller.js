@@ -6,6 +6,7 @@ const web3 = require('../models/blockchain');
 const { interface, bytecode } = require('../compile');
 let inbox;
 let deployedAddress;
+let admin;
 
 const signup = async (req, res, next) => {
     const errors = validationResult(req);
@@ -80,13 +81,14 @@ const deploy = async (req, res, next) => {
   let existingUser;
   try {
       existingUser = await User.findOne({ identity: identity });
+      const gasP = await web3.eth.getGasPrice();
       const txData = {
         gasLimit: web3.utils.toHex(30000),
-        gasPrice: web3.utils.toHex(10e9),
+        gasPrice: gasP,
         from: existingUser.wallet.address,
         data: '0x'+bytecode
-      }
-      
+      };
+      admin = existingUser;
       const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
       const newNonce = web3.utils.toHex(txCount);
       const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
@@ -111,9 +113,34 @@ const add = async (req, res, next) => {
     const { name, identity } = req.body;
   let existingUser;
   let add;
+  let owner;
   try {
       existingUser = await User.findOne({ identity: identity });
-      add = await inbox.methods.addCandidate(name).call();
+      owner = await inbox.methods.owner().call();
+      if (owner != existingUser.wallet.address)
+      {
+        return res.status(422).json({ res: 'Only admins are allowed to add people for the election'});
+      }
+      
+      add = await inbox.methods.addCandidate(name);
+      const gas = await add.estimateGas({ from: existingUser.wallet.address });
+      const gasP = await web3.eth.getGasPrice();
+        const txData = {
+        gasLimit: gas,
+        gasPrice: gasP,
+        from: existingUser.wallet.address,
+        data: add.encodeABI(),
+      };
+      
+      const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
+      const newNonce = web3.utils.toHex(txCount);
+      const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
+      transaction.sign(Buffer.from(existingUser.wallet.privateKey.substring(2),'hex'));
+      const serializedTx = transaction.serialize().toString('hex');
+      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
+      return res.status(201).json({res: signedTransaction});
+
+      
     } catch (err) {
         console.log(err);
         return res.status(500).json({ res: 'Method call failed.'});
@@ -129,11 +156,38 @@ const vote = async (req, res, next) => {
   let existingUser;
   let candidateList;
   let response;
+  let voters;
   try {
       existingUser = await User.findOne({ identity: identity });
-      candidateList = await inbox.methods.candidates().call();
+      owner = await inbox.methods.owner().call();
+      if (owner == existingUser.wallet.address)
+      {
+        return res.status(422).json({ res: 'Admins are not allowed to vote'});
+      }
+  
+      voters = await inbox.methods.voters().call();
+      console.log(voters);
+      candidateList = await inbox.methods.candidateList().call();
       console.log(candidateList);
-      response = await inbox.methods.vote(val).call();
+      response = await inbox.methods.vote(val);
+      const gas = await response.estimateGas({ from: existingUser.wallet.address });
+      const gasP = await web3.eth.getGasPrice();
+        const txData = {
+        gasLimit: gas,
+        gasPrice: gasP,
+        from: existingUser.wallet.address,
+        data: response.encodeABI(),
+      };
+      
+      const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
+      const newNonce = web3.utils.toHex(txCount);
+      const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
+      transaction.sign(Buffer.from(existingUser.wallet.privateKey.substring(2),'hex'));
+      const serializedTx = transaction.serialize().toString('hex');
+      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
+      return res.status(201).json({res: signedTransaction});
+
+      
     } catch (err) {
         console.log(err);
         return res.status(500).json({ res: 'Voting failed.'});
