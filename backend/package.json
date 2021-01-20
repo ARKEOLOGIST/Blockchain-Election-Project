@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.19.0",
+    "ethereumjs-tx": "^2.1.2",
     "express": "^4.17.1",
     "express-validator": "^6.9.2",
     "mongodb": "^3.6.3",

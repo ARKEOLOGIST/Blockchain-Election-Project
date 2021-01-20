@@ -1,9 +1,11 @@
 const { validationResult } = require('express-validator');
+const Tx = require('ethereumjs-tx').Transaction;
 
 const User = require('../models/user');
 const web3 = require('../models/blockchain');
 const { interface, bytecode } = require('../compile');
 let inbox;
+let deployedAddress;
 
 const signup = async (req, res, next) => {
     const errors = validationResult(req);
@@ -78,8 +80,25 @@ const deploy = async (req, res, next) => {
   let existingUser;
   try {
       existingUser = await User.findOne({ identity: identity });
-      inbox = await web3.eth.Contract(JSON.parse(interface)).deploy({ data: bytecode, arguments: [name] }).send({ from: existingUser.wallet.address, gas: '3000000'});
+      const txData = {
+        gasLimit: web3.utils.toHex(30000),
+        gasPrice: web3.utils.toHex(10e9),
+        from: existingUser.wallet.address,
+        data: '0x'+bytecode
+      }
+      
+      const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
+      const newNonce = web3.utils.toHex(txCount);
+      const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
+      transaction.sign(Buffer.from(existingUser.wallet.privateKey.substring(2),'hex'));
+      const serializedTx = transaction.serialize().toString('hex');
+      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
+      inbox = signedTransaction;
+      deployed = signedTransaction.contractAddress;
+      return res.status(201).json({res: signedTransaction});
+
     } catch (err) {
+        console.log(err);
         return res.status(500).json({ res: 'Deploy failed.'});
     }
 }
