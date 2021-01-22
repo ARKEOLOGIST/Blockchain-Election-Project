@@ -74,11 +74,24 @@ router.post(
     check('identity')
     .not()
     .isEmpty(),
-    check('val')
+    check('voter')
+    .not()
+    .isEmpty(),
+    check('index')
     .not()
     .isEmpty()
   ],
   usersController.vote
 );
+
+router.post(
+  '/candidates',
+  [
+    check('identity')
+    .not()
+    .isEmpty()
+  ],
+  usersController.candidates
+)
 
 module.exports = router;

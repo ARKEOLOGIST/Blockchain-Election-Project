@@ -2,11 +2,29 @@ const { validationResult } = require('express-validator');
 const Tx = require('ethereumjs-tx').Transaction;
 
 const User = require('../models/user');
-const web3 = require('../models/blockchain');
+const { web3, provider } = require('../models/blockchain');
 const { interface, bytecode } = require('../compile');
 let inbox;
-let deployedAddress;
-let admin;
+//let deployedAddress;
+let superAdmin;
+
+const setBlockchain = async (blockchain) => {
+    inbox = blockchain.inbox;
+    superAdmin = blockchain.superAdmin;
+}
+
+const funcDeploy = async (name,admin) => {
+      let superAdmin;
+      let inbox;
+      let accounts;
+      let obj;
+      accounts = await web3.eth.getAccounts();
+      inbox = await new web3.eth.Contract(JSON.parse(interface)).deploy({ data: '0x'+bytecode, arguments: [name] }).send({ from: accounts[parseInt(admin)], gas: '5000000' });
+      inbox.setProvider(provider);
+      superAdmin = accounts[parseInt(admin)];
+      obj = {inbox: inbox,superAdmin: superAdmin};
+      return obj;
+}
 
 const signup = async (req, res, next) => {
     const errors = validationResult(req);
@@ -77,14 +95,16 @@ const deploy = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
     }
-    const { name, identity } = req.body;
+    const { name,admin,identity } = req.body;
   let existingUser;
+  let obj;
+  //let stringz;
   try {
       existingUser = await User.findOne({ identity: identity });
-      const gasP = await web3.eth.getGasPrice();
+      /*const gasP = await web3.eth.getGasPrice();
       const txData = {
         gasLimit: web3.utils.toHex(30000),
-        gasPrice: gasP,
+        gasPrice: web3.utils.toHex(gasP),
         from: existingUser.wallet.address,
         data: '0x'+bytecode
       };
@@ -96,9 +116,11 @@ const deploy = async (req, res, next) => {
       const serializedTx = transaction.serialize().toString('hex');
       const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
       inbox = signedTransaction;
-      deployed = signedTransaction.contractAddress;
-      return res.status(201).json({res: signedTransaction});
-
+      deployedAddress = signedTransaction.contractAddress;
+      return res.status(201).json({res: signedTransaction});*/
+      obj = await funcDeploy(name,admin);
+      await setBlockchain(obj);
+      return res.status(201).json({ res: 'Deploy success.' });
     } catch (err) {
         console.log(err);
         return res.status(500).json({ res: 'Deploy failed.'});
@@ -110,26 +132,30 @@ const add = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
     }
-    const { name, identity } = req.body;
+    const { name,admin,identity } = req.body;
   let existingUser;
   let add;
   let owner;
+  let candidate;
+  let obj;
   try {
-      existingUser = await User.findOne({ identity: identity });
+      existingUser = await User.findOne({ identity: identity }); 
       owner = await inbox.methods.owner().call();
-      if (owner != existingUser.wallet.address)
+      if (owner != superAdmin)
       {
         return res.status(422).json({ res: 'Only admins are allowed to add people for the election'});
       }
       
-      add = await inbox.methods.addCandidate(name);
-      const gas = await add.estimateGas({ from: existingUser.wallet.address });
+      add = await inbox.methods.addCandidate(name).send({ from: owner });
+
+      /*const gas = await add.estimateGas({ from: existingUser.wallet.address });
       const gasP = await web3.eth.getGasPrice();
         const txData = {
         gasLimit: gas,
         gasPrice: gasP,
         from: existingUser.wallet.address,
-        data: add.encodeABI(),
+        to: deployedAddress,
+        data: add.encodeABI()
       };
       
       const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
@@ -137,8 +163,9 @@ const add = async (req, res, next) => {
       const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
       transaction.sign(Buffer.from(existingUser.wallet.privateKey.substring(2),'hex'));
       const serializedTx = transaction.serialize().toString('hex');
-      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
-      return res.status(201).json({res: signedTransaction});
+      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);*/
+
+      return res.status(201).json({res: add});
 
       
     } catch (err) {
@@ -152,20 +179,23 @@ const vote = async (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
   }
-  const { identity, val } = req.body;
+  const { identity, voter, index } = req.body;
   let existingUser;
-  let candidateList;
   let response;
-  let voters;
+  let accounts;
   try {
       existingUser = await User.findOne({ identity: identity });
       owner = await inbox.methods.owner().call();
-      if (owner == existingUser.wallet.address)
+      accounts = await web3.eth.getAccounts();
+      if (owner == accounts[parseInt(voter)])
       {
         return res.status(422).json({ res: 'Admins are not allowed to vote'});
       }
-  
-      voters = await inbox.methods.voters().call();
+      
+      response = await inbox.methods.vote(parseInt(index)).send({ from: accounts[parseInt(voter)], gas: '4000000' });
+
+
+      /*voters = await inbox.methods.voters().call();
       console.log(voters);
       candidateList = await inbox.methods.candidateList().call();
       console.log(candidateList);
@@ -176,7 +206,8 @@ const vote = async (req, res, next) => {
         gasLimit: gas,
         gasPrice: gasP,
         from: existingUser.wallet.address,
-        data: response.encodeABI(),
+        to: deployedAddress,
+        data: response.encodeABI()
       };
       
       const txCount = await web3.eth.getTransactionCount(existingUser.wallet.address);
@@ -184,14 +215,45 @@ const vote = async (req, res, next) => {
       const transaction = new Tx({ ...txData, nonce: newNonce}, { chain: 'rinkeby' });
       transaction.sign(Buffer.from(existingUser.wallet.privateKey.substring(2),'hex'));
       const serializedTx = transaction.serialize().toString('hex');
-      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);
-      return res.status(201).json({res: signedTransaction});
+      const signedTransaction = web3.eth.sendSignedTransaction('0x' + serializedTx);*/
+      return res.status(201).json({res: response});
 
-      
+
     } catch (err) {
         console.log(err);
         return res.status(500).json({ res: 'Voting failed.'});
     }
+}
+
+const candidates = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
+  }
+  const { name,admin,identity } = req.body;
+  let existingUser;
+  let obj;
+  let len;
+  let i;
+  let arr = [];
+  let blocc = {};
+  let copy;
+  try {
+      existingUser = await User.findOne({ identity: identity });  
+      len = await inbox.methods.getCandidateCount().call();
+      for (i = 0 ; i < len ; i++)
+      {
+        blocc.id = i;
+        blocc.name = await inbox.methods.getCandidateName(i).call();
+        blocc.votes = await inbox.methods.getCandidateVotes(i).call();
+        copy = {...blocc};
+        arr.push(copy);
+      }
+      return res.status(201).json({res: arr});
+  } catch (err) {
+      console.log(err);
+      return res.status(500).json({ res: 'Voting failed.'});
+  }
 }
 
 
@@ -200,3 +262,4 @@ exports.login = login;
 exports.deploy = deploy;
 exports.add = add;
 exports.vote = vote;
+exports.candidates = candidates;

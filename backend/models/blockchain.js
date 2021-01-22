@@ -1,4 +1,7 @@
 const Web3 = require('web3');
-const web3 = new Web3(Web3.givenProvider || "https://rinkeby.infura.io/v3/9cc9a569b98d47e8823b9afa14a6ff04");
+const ganache = require('ganache-cli');
+const provider = ganache.provider();
+const web3 = new Web3(provider);
 
-module.exports = web3;
+exports.web3 = web3;
+exports.provider = provider;

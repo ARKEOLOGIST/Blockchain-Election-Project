@@ -29,8 +29,16 @@ contract Election {
         candidates.push(Candidate(_name,0));
     }
     
-    function getNumCandidate() public view returns(uint) {
+    function getCandidateName(uint _index) public view returns(string) {
+        return candidates[_index].name;
+    }
+
+    function getCandidateCount() public view returns(uint) {
         return candidates.length;
+    }
+
+    function getCandidateVotes(uint _index) public view returns(uint) {
+        return candidates[_index].voteCount;
     }
     
     function vote(uint _voteIndex) public {
