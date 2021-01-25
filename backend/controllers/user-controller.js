@@ -138,10 +138,12 @@ const add = async (req, res, next) => {
   let owner;
   let candidate;
   let obj;
+  let accounts;
   try {
       existingUser = await User.findOne({ identity: identity }); 
+      accounts = await web3.eth.getAccounts();
       owner = await inbox.methods.owner().call();
-      if (owner != superAdmin)
+      if (owner != accounts[parseInt(admin)])
       {
         return res.status(422).json({ res: 'Only admins are allowed to add people for the election'});
       }
@@ -183,6 +185,7 @@ const vote = async (req, res, next) => {
   let existingUser;
   let response;
   let accounts;
+  let user;
   try {
       existingUser = await User.findOne({ identity: identity });
       owner = await inbox.methods.owner().call();
@@ -191,7 +194,11 @@ const vote = async (req, res, next) => {
       {
         return res.status(422).json({ res: 'Admins are not allowed to vote'});
       }
-      
+      user = await inbox.methods.voters(accounts[parseInt(voter)]).call();
+      if (user.voted)
+      {
+        return res.status(422).json({ res: 'You have already voted!'});
+      }
       response = await inbox.methods.vote(parseInt(index)).send({ from: accounts[parseInt(voter)], gas: '4000000' });
 
 
