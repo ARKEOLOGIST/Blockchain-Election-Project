@@ -45,10 +45,10 @@ router.post(
 router.post(
     '/deploy',
     [
-      check('identity')
+      check('name')
       .not()
       .isEmpty(),
-      check('name')
+      check('admin')
       .not()
       .isEmpty()
     ],
@@ -58,10 +58,7 @@ router.post(
 router.post(
   '/add',
   [
-    check('identity')
-    .not()
-    .isEmpty(),
-    check('name')
+    check('admin')
     .not()
     .isEmpty()
   ],
@@ -71,9 +68,6 @@ router.post(
 router.post(
   '/vote',
   [
-    check('identity')
-    .not()
-    .isEmpty(),
     check('voter')
     .not()
     .isEmpty(),
@@ -84,13 +78,8 @@ router.post(
   usersController.vote
 );
 
-router.post(
+router.get(
   '/candidates',
-  [
-    check('identity')
-    .not()
-    .isEmpty()
-  ],
   usersController.candidates
 )
 

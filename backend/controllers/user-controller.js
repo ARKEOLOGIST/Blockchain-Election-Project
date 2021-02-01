@@ -95,12 +95,12 @@ const deploy = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
     }
-    const { name,admin,identity } = req.body;
+    const { name,admin } = req.body;
   let existingUser;
   let obj;
   //let stringz;
   try {
-      existingUser = await User.findOne({ identity: identity });
+      //existingUser = await User.findOne({ identity: identity });
       /*const gasP = await web3.eth.getGasPrice();
       const txData = {
         gasLimit: web3.utils.toHex(30000),
@@ -132,7 +132,7 @@ const add = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
     }
-    const { name,admin,identity } = req.body;
+    const { admin } = req.body;
   let existingUser;
   let add;
   let owner;
@@ -140,7 +140,7 @@ const add = async (req, res, next) => {
   let obj;
   let accounts;
   try {
-      existingUser = await User.findOne({ identity: identity }); 
+      //existingUser = await User.findOne({ identity: identity }); 
       accounts = await web3.eth.getAccounts();
       owner = await inbox.methods.owner().call();
       if (owner != accounts[parseInt(admin)])
@@ -181,13 +181,13 @@ const vote = async (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
   }
-  const { identity, voter, index } = req.body;
+  const { voter, index } = req.body;
   let existingUser;
   let response;
   let accounts;
   let user;
   try {
-      existingUser = await User.findOne({ identity: identity });
+      //existingUser = await User.findOne({ identity: identity });
       owner = await inbox.methods.owner().call();
       accounts = await web3.eth.getAccounts();
       if (owner == accounts[parseInt(voter)])
@@ -237,7 +237,6 @@ const candidates = async (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
   }
-  const { name,admin,identity } = req.body;
   let existingUser;
   let obj;
   let len;
@@ -246,7 +245,7 @@ const candidates = async (req, res, next) => {
   let blocc = {};
   let copy;
   try {
-      existingUser = await User.findOne({ identity: identity });  
+      //existingUser = await User.findOne({ identity: identity });  
       len = await inbox.methods.getCandidateCount().call();
       for (i = 0 ; i < len ; i++)
       {
