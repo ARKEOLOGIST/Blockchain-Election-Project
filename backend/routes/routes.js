@@ -60,6 +60,9 @@ router.post(
   [
     check('admin')
     .not()
+    .isEmpty(),
+    check('value')
+    .not()
     .isEmpty()
   ],
   usersController.add

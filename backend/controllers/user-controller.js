@@ -132,7 +132,7 @@ const add = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
     }
-    const { admin } = req.body;
+    const { admin,value } = req.body;
   let existingUser;
   let add;
   let owner;
@@ -148,7 +148,7 @@ const add = async (req, res, next) => {
         return res.status(422).json({ res: 'Only admins are allowed to add people for the election'});
       }
       
-      add = await inbox.methods.addCandidate(name).send({ from: owner });
+      add = await inbox.methods.addCandidate(value).send({ from: owner });
 
       /*const gas = await add.estimateGas({ from: existingUser.wallet.address });
       const gasP = await web3.eth.getGasPrice();
@@ -181,7 +181,7 @@ const vote = async (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(422).json({ res: 'Invalid inputs passed, please check your data'});
   }
-  const { voter, index } = req.body;
+  const { voter,index } = req.body;
   let existingUser;
   let response;
   let accounts;
